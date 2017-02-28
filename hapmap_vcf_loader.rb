@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 require 'pp'
+require 'json'
 
 class HapmapVcfLoader
 	attr_reader :samples, :variants
@@ -112,6 +113,7 @@ end
 
 loader = HapmapVcfLoader.new
 loader.load_vcf(ARGV.shift)
-loader.variants.each { |var| pp var  }
-loader.samples.each { |samp| pp samp  }
+loader.variants.each { |var| puts "db._query('INSERT @document INTO variants'," + var.to_json + "})" }
+loader.samples.each { |samp| puts "db._query('INSERT @document INTO variants'," + samp.to_json + "})" }
+# loader.samples.each { |samp| pp "db._query('INSERT @document INTO samples', #{samp.to_json})"  }
 

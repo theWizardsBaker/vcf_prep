@@ -7,7 +7,7 @@ info_structure = {}
 
 alt_structure = {}
 
-table_columns = []
+samples = []
 
 def load_header(header_line, structure)
 
@@ -48,14 +48,18 @@ File.open(input_file, "r") do |f|
     # table header
     elsif line[0] == '#'
     	line = line.gsub(/^#/, '')
-    	table_columns = line.split(/\t/)
+    	table_cols = line.split(/\t/).drop(9)
+
+    	table_cols.each do |col|
+    		samples << { "_key" => col, "calls" => [] }
+    	end
     # table row
     else
     	line = line.split(/\t/)
     	row = { 
 				"_key" => line[2],
-				"names" => [line[2]],
-				"chromosome"=> line[0],
+				"names" => line[2].split(/,/),
+				"chromosome"=> line[0].to_i,
 			    "position"=> line[1],
 			    "filter"=> line[6],
 			    "reference_base"=> line[3],
@@ -65,10 +69,19 @@ File.open(input_file, "r") do |f|
 
     	line[7].split(/;/).each do |e|
     		info = e.split(/=/)
-    		row['info'][info[0]]['value'] = info[1]
+    		row['info'][info[0]]['value'] = info[1].to_s.split(/\,/).map(&:to_i)
     	end
 
     	pp row
+
+    	line[9..line.size].each_with_index do |call, ind|
+    		unless call =~ /\.(\||\/)\./
+    			samples[ind]["calls"] << { "variant" => line[2], "phased" => "#{!!(call =~ /\|/)}", "genotype" => call.gsub(/(\||\/)/, '').scan(/\d/).map(&:to_i)}
+    		end
+    	end
+
     end
   end
 end
+
+pp samples

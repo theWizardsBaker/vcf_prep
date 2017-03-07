@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
-require 'pp'
 require 'json'
+# require 'pp'
 
 class HapmapVcfLoader
 	attr_reader :samples, :variants
@@ -54,6 +54,7 @@ class HapmapVcfLoader
 							"filter"=> line[6],
 							"reference_base"=> line[3],
 							"alternate_bases"=> line[4].split(/,/),
+							"alternate_structure"=> @alt_structure,
 							"info" => @info_structure.clone
 						  }
 					# get each of the variant's info values and add them to our newly created variant
@@ -71,7 +72,7 @@ class HapmapVcfLoader
 							@samples[ind]["calls"] << { 
 								"variant" => line[2], 
 								"phased" => "#{!!(call =~ /\|/)}", 
-								"genotype" => call.gsub(/(\||\/)/, '').scan(/\d/).map(&:to_i)
+								"genotype" => call.split(/\||\//).map(&:to_i)
 							}
 						end
 					end
@@ -113,7 +114,15 @@ end
 
 loader = HapmapVcfLoader.new
 loader.load_vcf(ARGV.shift)
-loader.variants.each { |var| puts "db._query('INSERT @document INTO variants'," + var.to_json + "})" }
-loader.samples.each { |samp| puts "db._query('INSERT @document INTO variants'," + samp.to_json + "})" }
+
+# pp loader.variants.first
+
+File.open('variants.json', 'w') do |file| 
+	loader.variants.each { |var| file.puts var.to_json }
+end
+
+File.open('samples.json', 'w') do |file| 
+	loader.samples.each { |samp| file.puts samp.to_json }
+end
 # loader.samples.each { |samp| pp "db._query('INSERT @document INTO samples', #{samp.to_json})"  }
 

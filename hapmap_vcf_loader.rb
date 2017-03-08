@@ -80,11 +80,6 @@ class HapmapVcfLoader
 				end
 			end
 		end
-
-File.open('variants.json', 'w') do |file| 
-	@variants.each { |bob| file.puts bob["info"].to_json }
-end
-
 	end
 
 	private

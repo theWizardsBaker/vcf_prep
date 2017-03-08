@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 require 'json'
-# require 'pp'
+require 'pp'
 
 class HapmapVcfLoader
 	attr_reader :samples, :variants
@@ -55,7 +55,7 @@ class HapmapVcfLoader
 							"reference_base"=> line[3],
 							"alternate_bases"=> line[4].split(/,/),
 							"alternate_structure"=> @alt_structure,
-							"info" => @info_structure.clone
+							"info" => Marshal.load(Marshal.dump(@info_structure))
 						  }
 					# get each of the variant's info values and add them to our newly created variant
 					line[7].split(/;/).each do |e|
@@ -80,6 +80,11 @@ class HapmapVcfLoader
 				end
 			end
 		end
+
+File.open('variants.json', 'w') do |file| 
+	@variants.each { |bob| file.puts bob["info"].to_json }
+end
+
 	end
 
 	private
@@ -115,7 +120,10 @@ end
 loader = HapmapVcfLoader.new
 loader.load_vcf(ARGV.shift)
 
-# pp loader.variants.first
+# pp loader.variants[1]
+# pp loader.variants[5]
+
+# exit
 
 File.open('variants.json', 'w') do |file| 
 	loader.variants.each { |var| file.puts var.to_json }

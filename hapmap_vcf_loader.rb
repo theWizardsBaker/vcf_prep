@@ -151,7 +151,7 @@ class HapmapVcfLoader
 		# t_pool = Concurrent::FixedThreadPool.new(max_threads)
 		t_pool = Thread.pool(min_threads, max_threads)
 		# from 9 - oblivion, load each sample
-		@table_cols[9..10].each do | sample_column |
+		@table_cols[9..@table_cols.size].each do | sample_column |
 			t_pool.process do 
 				load_sample(vcf_file, sample_column, "#{sample_column}_#{sample_output_file_name}", true)
 			end
@@ -216,8 +216,8 @@ end
 
 loader = HapmapVcfLoader.new
 vcf_file = ARGV.shift
-# loader.load_variants(vcf_file)
-loader.load_all_samples(vcf_file, max_threads: 50)
+loader.load_variants(vcf_file)
+loader.load_all_samples(vcf_file)
 # loader.load_sample(vcf_file, "ben7884")
 
 

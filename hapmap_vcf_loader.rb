@@ -99,7 +99,6 @@ class HapmapVcfLoader
 
 			# if we couldn't find it, get outta here
 			raise "Could not find sample #{column} in #{vcf_file}" if column[:name].nil? or column[:number].nil?
-
 			# file for outputting variants
 			sample_output = File.open(sample_output_file_name, (append_to_file ? "a" : "w"))
 			# construct the sample object
@@ -172,6 +171,7 @@ class HapmapVcfLoader
 		File.open(vcf_file, "r").each_line do | line |
 			# if we're on the #CROM line
 			if line =~ /^#[^#]/
+				line = line.chomp
 				# remove the '#'
 				line[0] = ''
 				# split the line on tab 

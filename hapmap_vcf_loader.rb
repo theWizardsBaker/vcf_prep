@@ -1,14 +1,18 @@
 #!/usr/bin/env ruby
 require 'json'
+require 'thread/pool'
+require 'concurrent'
 
 class HapmapVcfLoader
-	attr_reader :samples, :variants
+	attr_accessor :logging
 	def initialize()
+		@logging = false
 		@table_cols = []
 	end
 	
 	def load_variants(vcf_file, variant_output_file_name = "variants.json")
 		begin 
+			puts "Loading Variants" if @logging
 			# contains the information in the VCF's info field 
 			info_structure = {}
 			# contains the information in the VCF's alt field
@@ -75,7 +79,6 @@ class HapmapVcfLoader
 					end
 				end
 			end
-
 		ensure
 			variant_output.close unless variant_output.nil?
 		end
@@ -83,6 +86,7 @@ class HapmapVcfLoader
 
 	def load_sample(vcf_file, sample_column, sample_output_file_name = "sample.json", append_to_file)
 		begin
+			puts "Loading #{sample_column}" if @logging
 			load_table_header(vcf_file) if @table_cols.empty?
 			# column info
 			column = {}
@@ -131,18 +135,35 @@ class HapmapVcfLoader
 				end
 			end
 			sample_output.puts "]}"
+			puts "#{sample_column} Done!" if @logging
 		ensure
 			sample_output.close unless sample_output.nil?
 		end
 	end
 
-	def load_all_samples(vcf_file, sample_output_file_name = "samples.json")
+	def load_all_samples(vcf_file, sample_output_file_name = "samples.json", min_threads: Concurrent.processor_count, max_threads: Concurrent.processor_count)
+		puts "Loading All Samples" if @logging
 		# populate the table_col if need be
 		load_table_header(vcf_file) if @table_cols.empty?
+		# list all the created files
+		@sample_files = []
+		# let's create a thread pool and speed this thing up
+		# t_pool = Concurrent::FixedThreadPool.new(max_threads)
+		t_pool = Thread.pool(min_threads, max_threads)
 		# from 9 - oblivion, load each sample
-		@table_cols[9..@table_cols.size].each do | sample_column |
-			load_sample(vcf_file, sample_column, sample_output_file_name, true)
+		@table_cols[9..10].each do | sample_column |
+			t_pool.process do 
+				load_sample(vcf_file, sample_column, "#{sample_column}_#{sample_output_file_name}", true)
+			end
 		end
+		# shut down our workers 
+		t_pool.shutdown
+
+		# combine all the smaller files
+		puts "Combinging samples" if @logging
+		combine = %x{echo *_#{sample_output_file_name} | xargs cat > #{sample_output_file_name}}
+		puts "Removing temp_samples" if @logging
+		remove = %x{ rm *_#{sample_output_file_name}} if combine
 	end
 
 	private
@@ -195,8 +216,8 @@ end
 
 loader = HapmapVcfLoader.new
 vcf_file = ARGV.shift
-loader.load_variants(vcf_file)
-loader.load_all_samples(vcf_file)
+# loader.load_variants(vcf_file)
+loader.load_all_samples(vcf_file, max_threads: 50)
 # loader.load_sample(vcf_file, "ben7884")
 
 

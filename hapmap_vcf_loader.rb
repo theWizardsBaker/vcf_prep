@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 require 'json'
-require 'thread/pool'
+# require 'thread/pool'
+require 'parallel'
 require 'concurrent'
 
 class HapmapVcfLoader
@@ -87,7 +88,10 @@ class HapmapVcfLoader
 	def load_sample(vcf_file, sample_column, sample_output_file_name = "sample.json", append_to_file)
 		begin
 			puts "Loading #{sample_column}" if @logging
-			load_table_header(vcf_file) if @table_cols.empty?
+			if @table_cols.empty?
+				load_table_header(vcf_file) 
+				puts "IS EMPTY"
+			end
 			# column info
 			column = {}
 			if (sample_column.is_a? Integer)
@@ -141,24 +145,16 @@ class HapmapVcfLoader
 		end
 	end
 
-	def load_all_samples(vcf_file, sample_output_file_name = "samples.json", min_threads: Concurrent.processor_count, max_threads: Concurrent.processor_count)
+	def load_all_samples(vcf_file, sample_output_file_name = "samples.json", thread_count: Concurrent.processor_count)
 		puts "Loading All Samples" if @logging
 		# populate the table_col if need be
 		load_table_header(vcf_file) if @table_cols.empty?
-		# list all the created files
-		@sample_files = []
-		# let's create a thread pool and speed this thing up
-		# t_pool = Concurrent::FixedThreadPool.new(max_threads)
-		t_pool = Thread.pool(min_threads, max_threads)
 		# from 9 - oblivion, load each sample
-		@table_cols[9..@table_cols.size].each do | sample_column |
-			t_pool.process do 
+		Parallel.each(@table_cols[9..@table_cols.size], in_processes: thread_count) do | sample_column |
+			# t_pool.process do 
 				load_sample(vcf_file, sample_column, "#{sample_column}_#{sample_output_file_name}", true)
-			end
+			# end
 		end
-		# shut down our workers 
-		t_pool.shutdown
-
 		# combine all the smaller files
 		puts "Combinging samples" if @logging
 		combine = %x{echo *_#{sample_output_file_name} | xargs cat > #{sample_output_file_name}}

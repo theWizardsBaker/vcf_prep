@@ -125,11 +125,17 @@ class HapmapVcfLoader
 						# unless it's ./. (meaning not recorded)
 						unless call =~ /\.(\||\/)\./
 							# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
-							sample = { 
-								"variant" => line[2], 
-								"phased" => "#{!!(call =~ /\|/)}", 
-								"genotype" => call.split(/\||\//).map(&:to_i)
-							}
+							# this should save us a lot of space 
+							genotype = call.split(/\||\//).map(&:to_i)
+							if genotype.any? { |x| x > 0 }
+								sample = { 
+									"variant" => line[2], 
+									"phased" => "#{!!(call =~ /\|/)}", 
+									"genotype" => genotype
+								}
+							else 
+								sample = { "variant" => line[2] }
+							end
 							# add the 'ole comma to seperate our json objects
 							sample_output.print "," unless first
 							sample_output.print "#{sample.to_json}"

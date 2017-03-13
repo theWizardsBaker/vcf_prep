@@ -125,17 +125,11 @@ class HapmapVcfLoader
 						# unless it's ./. (meaning not recorded)
 						unless call =~ /\.(\||\/)\./
 							# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
-							# this should save us a lot of space 
-							genotype = call.split(/\||\//).map(&:to_i)
-							if genotype.any? { |x| x > 0 }
-								sample = { 
-									"variant" => line[2], 
-									"phased" => "#{!!(call =~ /\|/)}", 
-									"genotype" => genotype
-								}
-							else 
-								sample = { "variant" => line[2] }
-							end
+							sample = { 
+								"variant" => line[2], 
+								"phased" => "#{!!(call =~ /\|/)}", 
+								"genotype" => call.split(/\||\//).map(&:to_i)
+							}
 							# add the 'ole comma to seperate our json objects
 							sample_output.print "," unless first
 							sample_output.print "#{sample.to_json}"
@@ -157,15 +151,15 @@ class HapmapVcfLoader
 		load_table_header(vcf_file) if @table_cols.empty?
 		# from 9 - oblivion, load each sample
 		Parallel.each(@table_cols[9..@table_cols.size], in_processes: thread_count) do | sample_column |
-			# t_pool.process do 
-				load_sample(vcf_file, sample_column, "#{sample_column}_#{sample_output_file_name}", true)
-			# end
+			load_sample(vcf_file, sample_column, "#{sample_column}_#{sample_output_file_name}", true)
 		end
-		# combine all the smaller files
-		puts "Combinging samples" if @logging
-		combine = %x{echo *_#{sample_output_file_name} | xargs cat > #{sample_output_file_name}}
-		puts "Removing temp_samples" if @logging
-		remove = %x{ rm *_#{sample_output_file_name}} if combine
+		@table_cols[9..@table_cols.size].each do | sample_column |
+			# combine all the smaller files
+			puts "Combinging samples" if @logging
+			combine = %x{echo #{sample_column}_#{sample_output_file_name} | xargs cat >> #{sample_output_file_name}}
+			puts "Removing temp_samples" if @logging
+			remove = %x{ rm #{sample_column}_#{sample_output_file_name} } if combine
+		end
 	end
 
 	private
@@ -218,7 +212,7 @@ end
 
 loader = HapmapVcfLoader.new
 vcf_file = ARGV.shift
-loader.load_variants(vcf_file)
+# loader.load_variants(vcf_file)
 loader.load_all_samples(vcf_file)
 # loader.load_sample(vcf_file, "ben7884")
 

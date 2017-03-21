@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 import fileinput
 import re
+import sys
 import copy
 from arango import ArangoClient
 # from pyArango.connection import *
 
 class hapmap_load:
-	logging = false
-	"""docstring for hapmap_load"""
+
 	def __init__(self, logging = false):
 		self.logging = logging
 		self.table_columns = []
 
-	def load_variants(self, vcf_file, database):
+	def load_vcf(self, vcf_file, database):
 		try:
 			if self.logging:
 				print "Begin load" 
@@ -123,7 +123,7 @@ class hapmap_load:
 		finally:
 			pass
 
-	def load_header(header_line, structure):
+	def load_header(self, header_line, structure):
 		# remove the < >
 		header_line = re.sub(r'<|>', '', header_line)
 		# format the header line so that we have an array of list elements
@@ -142,17 +142,24 @@ class hapmap_load:
 				elm_ref[val[0].lower()] = re.sub('^\"|\"?$', '', val[1])
 
 
-
-
-# Initialize the client for ArangoDB
-client = ArangoClient(
-    protocol='http',
-    host='localhost',
-    port=8529,
-    username='root',
-    password='PP0atsax',
-    enable_logging=True
-)
-
-db = client.db('testApp')
-
+if len(sys.argv) > 2
+	
+	# Initialize the client for ArangoDB
+	client = ArangoClient(
+	    protocol='http',
+	    host='localhost',
+	    port=8529,
+	    username='root',
+	    password='PP0atsax',
+	    enable_logging=True
+	)
+	if sys.argv[2] not in client.databases():
+		client.create_database(sys.argv[2])
+	# select the database
+	db = client.db(sys.argv[2])
+	# create our obj
+	loader = hapmap_load()
+	# start loading variants
+	loader.load_vcf(sys.argv[1], db)
+else 
+	print "please specify a VCF and arango database"

@@ -29,12 +29,12 @@ class hapmap_load:
 					if self.logging:
 						print "Loading header" 
 					# remove the starting ## and split on the first =
-					header_line = line[2:].split(r'=', 2)
+					header_line = line[2:].split(r'=', 1)
 					# write to the appropriate hash
 					if header_line[0] == "INFO":
-						load_header(header_line[1], info_structure)
+						self.load_header(header_line[1], info_structure)
 					elif header_line[0] == "ALT":
-						load_header(header_line[1], alt_structure)
+						self.load_header(header_line[1], alt_structure)
 				# sample header
 				elif line[:1] == '#':
 					if self.logging:
@@ -130,20 +130,20 @@ class hapmap_load:
 		header_line = re.compile(',(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)').split(header_line)
 		# reference element in the info structure
 		elm_ref = ''
-		# each header line
-		for line in header_line:
-			val = line.split(r'=', 2)
-			# add the id as the key
-			if val[0] == 'ID':
-				# set the 
-				elm_ref = structure[val[1]] = {}
-			else:
-				# for this id, add the values
-				elm_ref[val[0].lower()] = re.sub('^\"|\"?$', '', val[1])
+		if len(header_line) > 1
+			# each header line
+			for line in header_line:
+				val = line.split(r'=')
+				# add the id as the key
+				if val[0] == 'ID':
+					# set the 
+					elm_ref = structure[val[1]] = {}
+				else:
+					# for this id, add the values
+					elm_ref[val[0].lower()] = re.sub('^\"|\"?$', '', val[1])
 
 
 if len(sys.argv) > 2:
-	
 	# Initialize the client for ArangoDB
 	client = ArangoClient(
 	    protocol='http',

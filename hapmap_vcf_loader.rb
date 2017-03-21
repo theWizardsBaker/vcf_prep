@@ -132,7 +132,7 @@ class HapmapVcfLoader
 							}
 							# add the 'ole comma to seperate our json objects
 							sample_output.print "," unless first
-							sample_output.print "#{sample.to_json}"
+							sample_output.print sample.to_json
 							first = false
 						end
 					end

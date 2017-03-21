@@ -86,11 +86,11 @@ class hapmap_load:
 						for elm in info_line[1].split(r','):
 							raw_type = variant['info'][info_line[0]]["type"].lower()
 							# determin the type of the value
-							if raw_type == "integer"
+							if raw_type == 'integer':
 								values.push( int(elm) )
-							if raw_type == "double" or raw_type == "float"
+							if raw_type == 'double' or raw_type == 'float':
 								values.push( float(to_f) )
-							else
+							else:
 								values.push( str(to_f) )
 
 						# take the value, comma seperated, and break it into an integer array (faster to search on and compare)
@@ -98,8 +98,23 @@ class hapmap_load:
 
 					# add our variant to arango
 					db_variants.insert(variant)
-
-
+					# get the samples
+					samples = database.collection('samples')
+					# add each call to the appropriate sample
+					for ind, call in variant_calls[9:]:
+						if re.search(r'(\d(\/))+\d', call) != None:
+							# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
+							variant_call = { 
+								'variant': line[2], 
+								'phased': re.search(r'\|', call) != None }, 
+								'genotype': map(lambda x: int(x), call.split(r'\||\/'))
+							}
+							# get the sample
+							samp = samples.get(self.table_columns[ind])
+							# add the call to our sample
+							samp['call'].push(variant_call)
+							# update our sample
+							samples.update(samp, true)
 
 
 		except Exception as e:

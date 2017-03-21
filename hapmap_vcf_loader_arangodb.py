@@ -8,7 +8,7 @@ from arango import ArangoClient
 
 class hapmap_load:
 
-	def __init__(self, logging = false):
+	def __init__(self, logging = False):
 		self.logging = logging
 		self.table_columns = []
 
@@ -48,10 +48,10 @@ class hapmap_load:
 					# split the line on the tab and drop the first 9 elements (they are not samples)
 					self.table_columns = (line.split(r'\t+'))[9:]
 					# walk over each element
-					for sample in self.table_columns
+					for sample in self.table_columns:
 						# and add it into our database
-						db_samples.insert({ '_key' : sample, 'calls': [] }, false, false)
-				else
+						db_samples.insert({ '_key' : sample, 'calls': [] }, False, False)
+				else:
 					if self.logging:
 						print "Loading Variant"
 					# split the line on the tabs
@@ -66,12 +66,12 @@ class hapmap_load:
 					variant = { 
 								'_key': variant_calls[2],
 								'names': variant_calls[2].split(r','),
-								'chromosome: int(variant_calls[0]),
-								'position: variant_calls[1],
-								'filter: variant_calls[6],
-								'reference_base: variant_calls[3],
-								'alternate_bases: variant_calls[4].strip(r'<|>').split(r','),
-								'alternate_structure: alt_structure,
+								'chromosome': int(variant_calls[0]),
+								'position': variant_calls[1],
+								'filter': variant_calls[6],
+								'reference_base': variant_calls[3],
+								'alternate_bases': variant_calls[4].strip(r'<|>').split(r','),
+								'alternate_structure': alt_structure,
 								'info': {}
 							  }
 					# walk over each info value
@@ -106,7 +106,7 @@ class hapmap_load:
 							# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
 							variant_call = { 
 								'variant': line[2], 
-								'phased': re.search(r'\|', call) != None }, 
+								'phased': re.search(r'\|', call) != None , 
 								'genotype': map(lambda x: int(x), call.split(r'\||\/'))
 							}
 							# get the sample
@@ -114,7 +114,7 @@ class hapmap_load:
 							# add the call to our sample
 							samp['call'].push(variant_call)
 							# update our sample
-							samples.update(samp, true)
+							samples.update(samp, True)
 
 
 		except Exception as e:
@@ -131,18 +131,18 @@ class hapmap_load:
 		# reference element in the info structure
 		elm_ref = ''
 		# each header line
-		for line in header_line
+		for line in header_line:
 			val = line.split(r'=', 2)
 			# add the id as the key
-			if val[0] == 'ID'
+			if val[0] == 'ID':
 				# set the 
 				elm_ref = structure[val[1]] = {}
-			else
+			else:
 				# for this id, add the values
 				elm_ref[val[0].lower()] = re.sub('^\"|\"?$', '', val[1])
 
 
-if len(sys.argv) > 2
+if len(sys.argv) > 2:
 	
 	# Initialize the client for ArangoDB
 	client = ArangoClient(
@@ -161,5 +161,5 @@ if len(sys.argv) > 2
 	loader = hapmap_load()
 	# start loading variants
 	loader.load_vcf(sys.argv[1], db)
-else 
+else:
 	print "please specify a VCF and arango database"

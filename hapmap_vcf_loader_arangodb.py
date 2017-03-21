@@ -21,13 +21,13 @@ class hapmap_load:
 			# contains the information in the VCF's alt field
 			alt_structure = {}
 			# look for the 'samples' collection 
-			if not len(filter(lambda x: x['name']=='samples', database.collections())) == 0:
+			if len(filter(lambda x: x['name']=='samples', database.collections())) == 0:
 				# if we don't find it, let's create it
 				db_samples = database.create_collection('samples')
 			else:
 				db_samples = database.collection('samples')
 			# look for the 'variant' collection 
-			if not len(filter(lambda x: x['name']=='variants', database.collections())) == 0:
+			if len(filter(lambda x: x['name']=='variants', database.collections())) == 0:
 				# if we don't find it, let's create it
 				db_variants = database.create_collection('variants')
 			else:
@@ -84,17 +84,17 @@ class hapmap_load:
 						variant['info'][info_line[0]] = copy.deepcopy(info_structure[info_line[0]])
 						# find out how to store each value for the infos
 						values = []
-						# get each value
-						for elm in info_line[1].split(','):
-							raw_type = variant['info'][info_line[0]]['type'].lower()
-							# determin the type of the value
-							if raw_type == 'integer':
-								values.append( int(elm) )
-							if raw_type == 'double' or raw_type == 'float':
-								values.append( float(elm) )
-							else:
-								values.append( str(elm) )
-
+						if len(info_line) > 1:
+							# get each value
+							for elm in info_line[1].split(','):
+								raw_type = variant['info'][info_line[0]]['type'].lower()
+								# determin the type of the value
+								if raw_type == 'integer':
+									values.append( int(elm) )
+								if raw_type == 'double' or raw_type == 'float':
+									values.append( float(elm) )
+								else:
+									values.append( str(elm) )
 						# take the value, comma seperated, and break it into an integer array (faster to search on and compare)
 						variant['info'][info_line[0]]['value'] = values
 					# don't overwrite an existing variant
@@ -120,7 +120,7 @@ class hapmap_load:
 
 		except Exception as e:
 			print "Could not load data, an error occured"
-			print e.args
+			print e
 		finally:
 			pass
 

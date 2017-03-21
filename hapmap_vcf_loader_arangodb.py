@@ -20,6 +20,19 @@ class hapmap_load:
 			info_structure = {}
 			# contains the information in the VCF's alt field
 			alt_structure = {}
+			# look for the 'samples' collection 
+			if not len(filter(lambda x: x['name']=='samples', database.collections())) == 0:
+				# if we don't find it, let's create it
+				db_samples = database.create_collection('samples')
+			else:
+				db_samples = database.collection('samples')
+			# look for the 'variant' collection 
+			if not len(filter(lambda x: x['name']=='variants', database.collections())) == 0:
+				# if we don't find it, let's create it
+				db_variants = database.create_collection('variants')
+			else:
+				db_variants = database.collection('variants')
+
 			# open and walk through our VCF file
 			for line in fileinput.input(vcf_file):
 				# remove them end lines!
@@ -39,29 +52,18 @@ class hapmap_load:
 				elif line[:1] == '#':
 					if self.logging:
 						print "Creating Samples"
-					# look for the 'samples' collection 
-					if not len(filter(lambda x: x['name']=='samples', database.collections())):
-						# if we don't find it, let's create it
-						db_samples = database.create_collection('samples')
-					else:
-						db_samples = database.collection('samples')
 					# split the line on the tab and drop the first 9 elements (they are not samples)
 					self.table_columns = (re.split(r'\t+', line))[9:]
 					# walk over each element
 					for sample in self.table_columns:
-						# and add it into our database
-						db_samples.insert({ '_key' : sample, 'calls': [] }, False, False)
+						if not db_samples.has(sample):
+							# and add it into our database
+							db_samples.insert({ '_key' : sample, 'calls': [] }, False, False)
 				else:
 					if self.logging:
 						print "Loading Variant"
 					# split the line on the tabs
 					variant_calls = re.split(r'\t+', line)
-					# look for the 'variant' collection 
-					if not len(filter(lambda x: x['name']=='variants', database.collections())):
-						# if we don't find it, let's create it
-						db_variants = database.create_collection('variants')
-					else:
-						db_variants = database.collection('variants')
 					# create the variant object
 					variant = { 
 								'_key': variant_calls[2],
@@ -89,9 +91,9 @@ class hapmap_load:
 							if raw_type == 'integer':
 								values.append( int(elm) )
 							if raw_type == 'double' or raw_type == 'float':
-								values.append( float(to_f) )
+								values.append( float(elm) )
 							else:
-								values.append( str(to_f) )
+								values.append( str(elm) )
 
 						# take the value, comma seperated, and break it into an integer array (faster to search on and compare)
 						variant['info'][info_line[0]]['value'] = values
@@ -99,23 +101,21 @@ class hapmap_load:
 					if not db_variants.has(variant['_key']):
 						# add our variant to arango
 						db_variants.insert(variant)
-					# get the samples
-					samples = database.collection('samples')
 					# add each call to the appropriate sample
 					for ind, call in variant_calls[9:]:
 						if re.search(r'(\d(\/))+\d', call) != None:
 							# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
 							variant_call = { 
 								'variant': line[2], 
-								'phased': re.search(r'\|', call) != None , 
+								'phased': re.search(r'\|', call) != None, 
 								'genotype': map(lambda x: int(x), re.split(r'\||\/', call))
 							}
 							# get the sample
-							samp = samples.get(self.table_columns[ind])
+							samp = db_samples.get(self.table_columns[ind])
 							# add the call to our sample
 							samp['calls'].append(variant_call)
 							# update our sample
-							samples.update(samp, True)
+							db_samples.update(samp, True)
 
 
 		except Exception as e:

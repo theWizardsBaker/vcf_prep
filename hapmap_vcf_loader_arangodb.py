@@ -23,7 +23,7 @@ class hapmap_load:
 			# open and walk through our VCF file
 			for line in fileinput.input(vcf_file):
 				# remove them end lines!
-				line = line.rstrip("\r\n") 
+				line = line.rstrip('\r\n') 
 				# file header
 				if line[:2] == '##':
 					if self.logging:
@@ -84,20 +84,21 @@ class hapmap_load:
 						values = []
 						# get each value
 						for elm in info_line[1].split(','):
-							raw_type = variant['info'][info_line[0]]["type"].lower()
+							raw_type = variant['info'][info_line[0]]['type'].lower()
 							# determin the type of the value
 							if raw_type == 'integer':
-								values.push( int(elm) )
+								values.append( int(elm) )
 							if raw_type == 'double' or raw_type == 'float':
-								values.push( float(to_f) )
+								values.append( float(to_f) )
 							else:
-								values.push( str(to_f) )
+								values.append( str(to_f) )
 
 						# take the value, comma seperated, and break it into an integer array (faster to search on and compare)
 						variant['info'][info_line[0]]['value'] = values
-
-					# add our variant to arango
-					db_variants.insert(variant)
+					# don't overwrite an existing variant
+					if not db_variants.has(variant['_key']):
+						# add our variant to arango
+						db_variants.insert(variant)
 					# get the samples
 					samples = database.collection('samples')
 					# add each call to the appropriate sample
@@ -112,7 +113,7 @@ class hapmap_load:
 							# get the sample
 							samp = samples.get(self.table_columns[ind])
 							# add the call to our sample
-							samp['call'].push(variant_call)
+							samp['calls'].append(variant_call)
 							# update our sample
 							samples.update(samp, True)
 

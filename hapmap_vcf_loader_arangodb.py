@@ -91,7 +91,7 @@ class hapmap_load:
 								# determin the type of the value
 								if raw_type == 'integer':
 									values.append( int(elm) )
-								if raw_type == 'double' or raw_type == 'float':
+								elif raw_type == 'double' or raw_type == 'float':
 									values.append( float(elm) )
 								else:
 									values.append( str(elm) )
@@ -102,11 +102,11 @@ class hapmap_load:
 						# add our variant to arango
 						db_variants.insert(variant)
 					# add each call to the appropriate sample
-					for ind, call in variant_calls[9:]:
+					for ind, call in enumerate(variant_calls[9:]):
 						if re.search(r'(\d(\/))+\d', call) != None:
 							# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
 							variant_call = { 
-								'variant': line[2], 
+								'variant': variant_calls[2], 
 								'phased': re.search(r'\|', call) != None, 
 								'genotype': map(lambda x: int(x), re.split(r'\||\/', call))
 							}

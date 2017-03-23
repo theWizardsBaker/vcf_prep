@@ -11,8 +11,10 @@ class hapmap_load:
 	def __init__(self, logging = False):
 		self.logging = logging
 		self.table_columns = []
+		# Initialize the client for ArangoDB
+		self.client = MongoClient('localhost', 27017)
 
-	def load_vcf(self, vcf_file, database):
+	def load_vcf(self, vcf_file, database_name):
 		try:
 			if self.logging:
 				print "Begin load" 
@@ -20,6 +22,8 @@ class hapmap_load:
 			info_structure = {}
 			# contains the information in the VCF's alt field
 			alt_structure = {}
+			# select the database
+			database = self.client[database_name]
 
 			# open and walk through our VCF file
 			for line in fileinput.input(vcf_file):
@@ -147,13 +151,9 @@ class hapmap_load:
 
 
 if len(sys.argv) > 2:
-	# Initialize the client for ArangoDB
-	client = MongoClient('localhost', 27017)
-	# select the database
-	db = client[sys.argv[2]]
 	# create our obj
 	loader = hapmap_load()
 	# start loading variants
-	loader.load_vcf(sys.argv[1], db)
+	loader.load_vcf(sys.argv[1], sys.argv[2])
 else:
-	print "please specify a VCF and arango database"
+	print "please specify a VCF and mongo database"

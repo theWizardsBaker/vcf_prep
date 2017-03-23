@@ -12,7 +12,10 @@ class hapmap_load:
 		self.logging = logging
 		self.table_columns = []
 		# Initialize the client for ArangoDB
-		self.client = MongoClient('localhost', 27017)
+	    try:
+	        self.client = MongoClient("localhost", 27017)
+	    except AutoReconnect, e:
+	        raise ConnectionFailure(str(e))
 
 	def load_vcf(self, vcf_file, database_name):
 		try:
@@ -58,7 +61,7 @@ class hapmap_load:
 
 					# lets add the index if one doesn't exist
 					if 'sample_search_index' not in database.samples.index_information():
-						database.samples.create_index([('_key', pymongo.TEXT)], name='sample_search_index', default_language='english', unique=True)
+						database.samples.create_index([('_key', self.client.TEXT)], name='sample_search_index', default_language='english', unique=True)
 				else:
 					if self.logging:
 						print "Loading Variant"
@@ -109,7 +112,7 @@ class hapmap_load:
 
 					# lets add the index if one doesn't exist
 					if 'variant_search_index' not in database.variants.index_information():
-						database.variants.create_index([('_key', pymongo.TEXT)], name='variant_search_index', default_language='english', unique=True)
+						database.variants.create_index([('_key', self.client.TEXT)], name='variant_search_index', default_language='english', unique=True)
 
 					# add each call to the appropriate sample
 					for ind, call in enumerate(variant_calls[9:]):

@@ -45,7 +45,7 @@ class hapmap_load:
 					self.table_columns = (re.split(r'\t+', line))[9:]
 
 					# lets add the index if one doesn't exist
-					if 'sample_search_index' not in myCollection.index_information():
+					if 'sample_search_index' not in database.samples.index_information():
 						database.samples.create_index([('_key', pymongo.TEXT)], name='sample_search_index', default_language='english', unique=True)
 
 					# walk over each element
@@ -60,12 +60,12 @@ class hapmap_load:
 						print "Loading Variant"
 
 					# lets add the index if one doesn't exist
-					if 'variant_search_index' not in myCollection.index_information():
-						database.variant.create_index([('_key', pymongo.TEXT)], name='variant_search_index', default_language='english', unique=True)
+					if 'variant_search_index' not in database.variants.index_information():
+						database.variants.create_index([('_key', pymongo.TEXT)], name='variant_search_index', default_language='english', unique=True)
 
 					# split the line on the tabs
 					variant_calls = re.split(r'\t+', line)
-					
+
 					# create the variant object
 					variant = { 
 								'_key': variant_calls[2],
@@ -149,8 +149,6 @@ class hapmap_load:
 if len(sys.argv) > 2:
 	# Initialize the client for ArangoDB
 	client = MongoClient('localhost', 27017)
-	if sys.argv[2] not in client.database_names():
-		client.create_database(sys.argv[2])
 	# select the database
 	db = client[sys.argv[2]]
 	# create our obj

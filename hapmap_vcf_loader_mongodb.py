@@ -48,10 +48,6 @@ class hapmap_load:
 					# split the line on the tab and drop the first 9 elements (they are not samples)
 					self.table_columns = (re.split(r'\t+', line))[9:]
 
-					# lets add the index if one doesn't exist
-					if 'sample_search_index' not in database.samples.index_information():
-						database.samples.create_index([('_key', pymongo.TEXT)], name='sample_search_index', default_language='english', unique=True)
-
 					# walk over each element
 					for sample in self.table_columns:
 						try:
@@ -59,13 +55,13 @@ class hapmap_load:
 						except Exception as e:
 							if self.logging:
 								print "%s already exists in samples, skipping" % sample
+
+					# lets add the index if one doesn't exist
+					if 'sample_search_index' not in database.samples.index_information():
+						database.samples.create_index([('_key', pymongo.TEXT)], name='sample_search_index', default_language='english', unique=True)
 				else:
 					if self.logging:
 						print "Loading Variant"
-
-					# lets add the index if one doesn't exist
-					if 'variant_search_index' not in database.variants.index_information():
-						database.variants.create_index([('_key', pymongo.TEXT)], name='variant_search_index', default_language='english', unique=True)
 
 					# split the line on the tabs
 					variant_calls = re.split(r'\t+', line)
@@ -110,6 +106,10 @@ class hapmap_load:
 					except Exception as e:
 						if self.logging:
 							print "%s already exists in variants, skipping" % variant_calls[2]
+
+					# lets add the index if one doesn't exist
+					if 'variant_search_index' not in database.variants.index_information():
+						database.variants.create_index([('_key', pymongo.TEXT)], name='variant_search_index', default_language='english', unique=True)
 
 					# add each call to the appropriate sample
 					for ind, call in enumerate(variant_calls[9:]):

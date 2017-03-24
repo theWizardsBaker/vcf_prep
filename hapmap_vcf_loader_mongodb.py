@@ -26,7 +26,7 @@ class hapmap_load:
 		# split the inital file
 		call("csplit -f vcf_loader_head_tmp_ %s '/^#CHROM/'" % vcf_file, shell=True)
 		# load the header elements
-		self.__parse_header('vcf_loader_head_tmp_00', shell=True)
+		self.__parse_header('vcf_loader_head_tmp_00')
 		# split the second file based on how many cores we have
 		call("split -l$((`wc -l < vcf_loader_head_tmp_01`/%d)) vcf_loader_head_tmp_01 vcf_loader_tmp_ " % pool_count, shell=True)
 		# remove the first tmps
@@ -36,17 +36,18 @@ class hapmap_load:
 		# setup a processing pool
 		pool = multiprocessing.Pool(pool_count)
 		# walk over the shards
-    	pool.map(partial(self.__load_rows, vcf_file), vcf_shards)
+    	pool.map_async(partial(self.__load_rows, vcf_file), vcf_shards)
     	# close pool connection
     	pool.close()
 
-		# lets add the index if one doesn't exist
-		if 'variant_search_index' not in database.variants.index_information():
-			database.variants.create_index([('_key', pymongo.TEXT)], name='variant_search_index', default_language='english', unique=True)
+    	if results:
+			# lets add the index if one doesn't exist
+			if 'variant_search_index' not in database.variants.index_information():
+				database.variants.create_index([('_key', pymongo.TEXT)], name='variant_search_index', default_language='english', unique=True)
 
-		# lets add the index if one doesn't exist
-		if 'sample_search_index' not in database.samples.index_information():
-			database.samples.create_index([('_key', pymongo.TEXT)], name='sample_search_index', default_language='english', unique=True)
+			# lets add the index if one doesn't exist
+			if 'sample_search_index' not in database.samples.index_information():
+				database.samples.create_index([('_key', pymongo.TEXT)], name='sample_search_index', default_language='english', unique=True)
 
 
 	def __parse_header(self, vcf_file):
@@ -72,9 +73,9 @@ class hapmap_load:
 
 				# write to the appropriate hash
 				if header_line[0] == "INFO":
-					self.__load_header(header_line[1], info_structure)
+					self.__load_header(header_line[1], self.info_structure)
 				elif header_line[0] == "ALT":
-					self.__load_header(header_line[1], alt_structure)
+					self.__load_header(header_line[1], self.alt_structure)
 			# sample header
 			elif line[:1] == '#':
 				if self.logging:

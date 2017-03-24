@@ -26,7 +26,7 @@ class hapmap_load:
 		# split the inital file
 		call("csplit -f vcf_loader_head_tmp_ %s '/^#CHROM/'" % vcf_file, shell=True)
 		# load the header elements
-		__parse_header('vcf_loader_head_tmp_00', shell=True)
+		self.__parse_header('vcf_loader_head_tmp_00', shell=True)
 		# split the second file based on how many cores we have
 		call("split -l$((`wc -l < vcf_loader_head_tmp_01`/%d)) vcf_loader_head_tmp_01 vcf_loader_tmp_ " % pool_count, shell=True)
 		# remove the first tmps
@@ -36,11 +36,9 @@ class hapmap_load:
 		# setup a processing pool
 		pool = multiprocessing.Pool(pool_count)
 		# walk over the shards
-    	pool.map(partial(__load_rows, vcf_file), vcf_shards)
+    	pool.map(partial(self.__load_rows, vcf_file), vcf_shards)
     	# close pool connection
     	pool.close()
-    	# join pool results
-		pool.join()
 
 		# lets add the index if one doesn't exist
 		if 'variant_search_index' not in database.variants.index_information():

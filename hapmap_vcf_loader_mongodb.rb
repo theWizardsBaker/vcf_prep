@@ -19,9 +19,9 @@ class Hapmap_Load
 		# system "split -f vcf_loader_head_tmp_ #{vcf_file} -n $(`grep -n '#CHROM' example_csplit.txt | cut  -d : -f 1`)"
 		header_end = %x(grep -n '^#CHROM' #{vcf_file} | cut  -d : -f 1)
 		# load the header elements
-		parse_header(vcf_file, header_end)
+		parse_header(vcf_file, header_end.to_i)
 		# split the second file based on how many cores we have
-		system "split -l$((`wc -l < vcf_loader_head_tmp_01`/#{pool_count})) #{vcf_file} vcf_loader_tmp_ "
+		system "split -l$((`wc -l < #{vcf_file}`/#{pool_count})) #{vcf_file} vcf_loader_tmp_ "
 		# remove the first tmps
 		system "rm vcf_loader_head_tmp_*"
 		# get all tmp files
@@ -29,14 +29,14 @@ class Hapmap_Load
 		# run parallel processes 
 		Parallel.each(vcf_shards, in_processes: pool_count) { |vcf_shard_file| load_rows(vcf_shard_file) }
 		# add the indexs as a final step
-		loader.add_index()
+		add_index()
 	end
 
 	def add_index()
 		# lets add the index if one doesn't exist
-		@client[:variants].indexes.create_one({ '_key' => Mongo::TEXT }, :name => 'variant_search_index', :unique => true)
+		@client[:variants].indexes.create_one({ '_key' => 1 }, { :name => 'variant_search_index', :unique => true })
 		# lets add the index if one doesn't exist
-		@client[:samples].indexes.create_one({ '_key' => Mongo::TEXT }, :name => 'sample_search_index', :unique => true)
+		@client[:samples].indexes.create_one({ '_key' => 1 }, { :name => 'samples_search_index', :unique => true })
 	end
 
 	private
@@ -47,8 +47,10 @@ class Hapmap_Load
 		@info_structure = {}
 		# contains the information in the VCF's alt field
 		@alt_structure = {}
-		# open and walk through our VCF file
-		File.open(vcf_header, "r").limit(header_end) do |f|
+		# get only n number of lines
+		lines = File.open(vcf_header, "r").first(header_end) 
+		# walk over each
+		lines.each do |f|
 			f.each_line do |line|
 				# remove them end lines!
 				line = line.chomp
@@ -70,7 +72,7 @@ class Hapmap_Load
 					# split the line on the tab and drop the first 9 elements (they are not samples)
 					@table_columns = line.split(/\t/)
 					# walk over each element and add it to the mongo client
-					@table_columns.each { |sample| @client[:samples].insert_one({ _key: sample, calls: [] }) }
+					@table_columns[9..-1].each { |sample| @client[:samples].insert_one({ '_key' => sample, 'calls' => [] }) }
 				end
 			end
 		end
@@ -126,7 +128,7 @@ class Hapmap_Load
 					variant['info'][info_column[0]] = @info_structure[info_column[0]].clone
 					# find out how to store each value for the infos
 					# break apart each info line by the ,  and map all values by type
-					variant['info'][info_column[0]]['value'] = info_column[1].to_s.split(/\,/).map do |elm|
+					val = info_column[1].to_s.split(/\,/).map do |elm|
 						case variant['info'][info_column[0]]['type'].downcase
 							when 'integer'
 								elm.to_i
@@ -136,21 +138,30 @@ class Hapmap_Load
 								elm.to_s
 						end
 					end
+					variant['info'][info_column[0]]['value'] = val if not val.empty?
 				end
 				# try to insert the variant
 				@client[:variants].insert_one(variant)
+				# add a reference to the variant by getting it's object ID
+				var_ref = @client[:variants].find({ '_key' => variant_calls[2] })
 				# sample time
 				variant_calls[9..-1].each_with_index do |call, ind|
 					# unless the call is ./. or .|.
 					unless call =~ /\.(\||\/)\./
 						# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
-						# add a reference to the variant by getting it's object ID
-						var_ref = @client[:variants].find({ '_key' => variant_calls[2] })
-						variant_call = { 
-							'variant' => var_ref.first[:_id], 
-							'phased' => !!(call =~ /\|/), 
-							'genotype' => call.split(/\||\//).map(&:to_i)
-						}
+						# don't need to store phase or 0/0 if it matches the reference
+						if call =~ /^0((\||\/)0)+$/
+							variant_call = { 
+								'variant' => var_ref.first[:_id]
+							}
+						else
+							# store phase and what the genotype is if it differs from the reference
+							variant_call = { 
+								'variant' => var_ref.first[:_id], 
+								'phased' => !!(call =~ /\|/), 
+								'genotype' => call.split(/\||\//).map(&:to_i)
+							}
+						end
 						puts "Inserting sample #{@table_columns[ind]}" if @logging
 						# add the call to our sample
 						@client[:samples].update_one({ '_key' => @table_columns[ind] }, { '$push' => { 'calls' => variant_call } })

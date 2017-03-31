@@ -101,7 +101,7 @@ class Hapmap_Load
 								# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
 								# store phase and what the genotype is if it differs from the reference
 								calls.push({ 
-									sample: tablecolumns[ind][:id],
+									sample: tablecolumns[ind][:_id],
 									variant: variant_id, 
 									phased: !!(call =~ /\|/), 
 									genotype: call.split(/\||\//).map(&:to_i)
@@ -163,8 +163,6 @@ end
 if ARGV.size >= 2
 	# create our obj
 	loader = Hapmap_Load.new
-	puts opts.to_hash
-	exit
 	# start loading variants
 	loader.load_vcf(opts.arguments[0], opts.to_hash)
 else

@@ -163,6 +163,8 @@ end
 if ARGV.size >= 2
 	# create our obj
 	loader = Hapmap_Load.new
+	puts opts.to_hash
+	exit
 	# start loading variants
 	loader.load_vcf(opts.arguments[0], opts.to_hash)
 else

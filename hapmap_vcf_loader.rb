@@ -110,38 +110,39 @@ class HapmapVcfLoader
 			# file for outputting variants
 			sample_output = File.open(sample_output_file_name, (append_to_file ? "a" : "w"))
 			# construct the sample object
-			sample_output.print "{ \"_key\" : \"#{column[:name]}\", \"calls\" : ["
-
-			# start reading the VCF file
-			File.open(vcf_file, "r") do |f|
-				first = true
-				f.each_line do |line, ind|
-					if line =~ /^[^#]/
-						line = line.chomp
-						# break the table row into an array
-						line = line.split(/\t/)
-						# get each of the samples's call and add it to the appropriate sample
-						call = line[column[:number]].to_s
-						# unless it's ./. (meaning not recorded)
-						unless call =~ /\.(\||\/)\./
-							# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
-							sample = { 
-								"variant" => line[2], 
-								"phased" => "#{!!(call =~ /\|/)}", 
-								"genotype" => call.split(/\||\//).map(&:to_i)
-							}
-							# add the 'ole comma to seperate our json objects
-							sample_output.print "," unless first
-							sample_output.print sample.to_json
-							first = false
-						end
-					end
-				end
-			end
-			sample_output.puts "]}"
+			sample_output.print "{ \"_key\" : \"#{column[:name]}\" }"
 			puts "#{sample_column} Done!" if @logging
 		ensure
 			sample_output.close unless sample_output.nil?
+		end
+	end
+
+	def load_calls(vcf_file)
+		# start reading the VCF file
+		File.open(vcf_file, "r") do |f|
+			first = true
+			f.each_line do |line, ind|
+				if line =~ /^[^#]/
+					line = line.chomp
+					# break the table row into an array
+					line = line.split(/\t/)
+					# get each of the samples's call and add it to the appropriate sample
+					call = line[column[:number]].to_s
+					# unless it's ./. (meaning not recorded)
+					unless call =~ /\.(\||\/)\./
+						# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
+						sample = { 
+							"variant" => line[2], 
+							"phased" => "#{!!(call =~ /\|/)}", 
+							"genotype" => call.split(/\||\//).map(&:to_i)
+						}
+						# add the 'ole comma to seperate our json objects
+						sample_output.print "," unless first
+						sample_output.print sample.to_json
+						first = false
+					end
+				end
+			end
 		end
 	end
 

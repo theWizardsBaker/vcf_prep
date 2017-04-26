@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-require 'mongo'
+require 'orient_db_client'
 require 'slop'
 require 'zlib'
 # require 'parallel'
@@ -15,9 +15,11 @@ class Hapmap_Load
 	def load_vcf(vcf_file, database_options = {})
 		puts "Begin load" if @logging
 		begin
-			Mongo::Logger.logger.level = ::Logger::FATAL
 			# select the database
-			client = Mongo::Client.new([ "#{database_options[:ip]}:27017" ], database_options)
+			# db = OrientDB::DocumentDatabase.connect "remote:192.168.122.50/maizemine", 'maize_user', 'maize'
+			# db = OrientDB::OrientGraph.new "remote:192.168.122.50/maizemine", 'maize_user', 'maize'
+			# db = OrientDB::DocumentDatabase.connect "remote:#{database_options[:ip]}/#{database_options.database}", database_options.user, database_options.password
+			db = OrientDB::OrientGraph.new "remote:#{database_options[:ip]}/#{database_options.database}", database_options.user, database_options.password
 			# contains the information in the VCF's info field 
 			info_structure = {}
 			# contains the information in the VCF's alt field
@@ -53,22 +55,19 @@ class Hapmap_Load
 						# split the line on the tab and drop the first 9 elements (they are not samples)
 						# walk over each element and add it to the mongo client
 						tablecolumns = line.split(/\t/)[9..-1].map do |sample| 
-							sample_id = BSON::ObjectId.new
-							{ _key: sample, _id: sample_id }
+							db.add_vertex "class:Sample", key: sample
 						end
-						client[:samples].insert_many(tablecolumns)
+						db.commit
+						# client[:samples].insert_many(tablecolumns)
 						# Mongo::BulkWrite.get(client[:samples], tablecolumns, ordered:false, write_concern: Mongo::BulkWrite::UnorderedBulkWrite)
 						# blk = Mongo::BulkWrite.new(client[:samples], tablecolumns, ordered:false, write_concern: 0)
 					else
 						puts "Creating Varians and Calls" if @logging
 						# split the line on the tabs
 						variant_calls = line.split(/\t/)
-						# create the variant object id
-						variant_id = BSON::ObjectId.new
+
 						# create the variant object
 						variant = { 
-								_id: variant_id,
-								_key: variant_calls[2],
 								names: variant_calls[2].split(/,/),
 								chromosome:variant_calls[0].to_i,
 								position:variant_calls[1],
@@ -99,40 +98,34 @@ class Hapmap_Load
 							variant[:info][info_column[0]][:value] = val if not val.empty?
 						end
 						# try to insert the variant
-						client[:variants].insert_one(variant)
-
-						calls = []
+						# client[:variants].insert_one(variant)
+						new_variant = db.add_vertex "class:Variant", variant
 						# sample time
 						variant_calls[9..-1].each_with_index do |call, ind|
 							# unless the call is ./. or .|.
 							unless call =~ /\.(\||\/)\./
 								# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
 								# store phase and what the genotype is if it differs from the reference
-								calls.push({ 
-									sample: tablecolumns[ind][:_id],
-									variant: variant_id, 
-									phased: !!(call =~ /\|/), 
-									genotype: call.split(/\||\//).map(&:to_i)
-								})
+								db.add_edge "Call", variant, tablecolumns[ind] phased: !!(call =~ /\|/), genotype: call.split(/\||\//).map(&:to_i)
 							end
 						end
-
+						db.commit
 						# add the call to our sample
-						client[:calls].insert_many(calls)
+						# client[:calls].insert_many(calls)
 						# Mongo::BulkWrite::UnorderedBulkWrite.new(:calls, calls, write_concern: 0)
 					end
 				end
 			end
 			# lets add the index if one doesn't exist
-			client[:variants].indexes.create_one({ _key: 1 }, { name: 'variant_search_index', unique: true })
+			# client[:variants].indexes.create_one({ _key: 1 }, { name: 'variant_search_index', unique: true })
 			# lets add the index if one doesn't exist
-			client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
+			# client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
 		rescue Exception => e
 			puts e.message
 			puts (e.backtrace or []).join("\n")
 		ensure 
 			# close our mongo connection
-			client.close
+			db.close
 			# close our file
 			file.close
 		end

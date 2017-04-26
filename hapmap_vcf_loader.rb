@@ -3,6 +3,7 @@ require 'json'
 # require 'thread/pool'
 require 'parallel'
 require 'concurrent'
+require 'zlib'
 
 class HapmapVcfLoader
 	attr_accessor :logging
@@ -11,6 +12,11 @@ class HapmapVcfLoader
 		@table_cols = []
 	end
 	
+	def load_vcf(vcf_file)
+		load_variants
+	end
+
+
 	def load_variants(vcf_file, variant_output_file_name = "variants.json")
 		begin 
 			puts "Loading Variants" if @logging
@@ -21,7 +27,7 @@ class HapmapVcfLoader
 			# file for outputting variants
 			variant_output = File.open(variant_output_file_name, "w")
 			# open and walk through our VCF file
-			File.open(vcf_file, "r") do |f|
+			Zlib::GzipReader.open(vcf_file, "r") do |f|
 				f.each_line do |line|
 					line = line.chomp
 					# file header
@@ -45,6 +51,7 @@ class HapmapVcfLoader
 						line = line.split(/\t/)
 						# add the row's variant 
 						variant = { 
+								"_id" => objectid.as_json,
 								"_key" => line[2],
 								"names" => line[2].split(/,/),
 								"chromosome"=> line[0].to_i,
@@ -133,6 +140,7 @@ class HapmapVcfLoader
 						# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
 						sample = { 
 							"variant" => line[2], 
+							"sample" => ,
 							"phased" => "#{!!(call =~ /\|/)}", 
 							"genotype" => call.split(/\||\//).map(&:to_i)
 						}
@@ -219,3 +227,7 @@ loader.load_all_samples(vcf_file)
 
 
 
+# sudo iptables -A INPUT -p tcp --dport 2424 -j ACCEPT
+# 450  sudo firewall-cmd --zone=public --add-port=2480/tcp --permanent
+# 452  sudo firewall-cmd --zone=public --add-port=2424/tcp --permanent
+# sudo firewall-cmd --reload

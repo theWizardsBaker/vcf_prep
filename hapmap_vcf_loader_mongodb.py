@@ -13,44 +13,9 @@ class hapmap_load:
 
 	def __init__(self, logging = False):
 		self.logging = logging
-		self.table_columns = []
-		# Initialize the client for MongoDB
-		try:
-			self.client = pymongo.MongoClient("localhost", 27017)
-		except AutoReconnect, e:
-			raise ConnectionFailure(str(e))
-
-	def load_vcf(self, vcf_file, database_name, pool_count = multiprocessing.cpu_count()):
-		# select the database
-		self.database = self.client[database_name]
-		# split the inital file
-		call("csplit -f vcf_loader_head_tmp_ %s '/^#CHROM/'" % vcf_file, shell=True)
-		# load the header elements
-		self.__parse_header('vcf_loader_head_tmp_00')
-		# split the second file based on how many cores we have
-		call("split -l$((`wc -l < vcf_loader_head_tmp_01`/%d)) vcf_loader_head_tmp_01 vcf_loader_tmp_ " % pool_count, shell=True)
-		# remove the first tmps
-		call("rm vcf_loader_head_tmp_*", shell=True)
-		# get all tmp files
-		vcf_shards = glob.glob('vcf_loader_tmp_*')
-		# setup a processing pool
-		pool = multiprocessing.Pool(pool_count)
-		# walk over the shards
-    	pool.map_async(partial(self.__load_rows, vcf_file), vcf_shards)
-    	# close pool connection
-    	pool.close()
-
-    	if results:
-			# lets add the index if one doesn't exist
-			if 'variant_search_index' not in database.variants.index_information():
-				database.variants.create_index([('_key', pymongo.TEXT)], name='variant_search_index', default_language='english', unique=True)
-
-			# lets add the index if one doesn't exist
-			if 'sample_search_index' not in database.samples.index_information():
-				database.samples.create_index([('_key', pymongo.TEXT)], name='sample_search_index', default_language='english', unique=True)
 
 
-	def __parse_header(self, vcf_file):
+	def __parse_header(self, vcf_header):
 		if self.logging:
 			print "Begin load" 
 		# contains the information in the VCF's info field 
@@ -59,7 +24,7 @@ class hapmap_load:
 		self.alt_structure = {}
 
 		# open and walk through our VCF file
-		for num, line in enumerate(fileinput.input(vcf_file), 1):
+		for num, line in enumerate(fileinput.input(vcf_header), 1):
 			# remove them end lines!
 			line = line.rstrip('\r\n') 
 
@@ -93,8 +58,27 @@ class hapmap_load:
 							print "%s already exists in samples, skipping" % sample
 
 
+	def __load_header(self, header_line, structure):
+		# remove the < >
+		header_line = re.sub(r'<|>', '', header_line)
+		# format the header line so that we have an array of list elements
+		header_line = re.split(r',(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)', header_line)
+		# reference element in the info structure
+		elm_ref = ''
+		if len(header_line) > 1:
+			# each header line
+			for line in header_line:
+				val = line.split(r'=')
+				# add the id as the key
+				if val[0] == 'ID':
+					# set the 
+					elm_ref = structure[val[1]] = {}
+				else:
+					# for this id, add the values
+					elm_ref[val[0].lower()] = re.sub('^\"|\"?$', '', val[1])
 
-	def __load_rows(self, vcf_file):
+
+	def load_rows(self, vcf_file):
 
 		if self.logging:
 			print "Loading Variant"
@@ -166,24 +150,35 @@ class hapmap_load:
 							print "%s already exists in variants, skipping" % variant_calls[2]
 
 
-	def __load_header(self, header_line, structure):
-		# remove the < >
-		header_line = re.sub(r'<|>', '', header_line)
-		# format the header line so that we have an array of list elements
-		header_line = re.split(r',(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)', header_line)
-		# reference element in the info structure
-		elm_ref = ''
-		if len(header_line) > 1:
-			# each header line
-			for line in header_line:
-				val = line.split(r'=')
-				# add the id as the key
-				if val[0] == 'ID':
-					# set the 
-					elm_ref = structure[val[1]] = {}
-				else:
-					# for this id, add the values
-					elm_ref[val[0].lower()] = re.sub('^\"|\"?$', '', val[1])
+	def load_vcf(self, vcf_file, database_name, pool_count):
+		# Initialize the client for MongoDB
+		try:
+			client = pyorient.OrientDB("192.128.122.50", 2424) 
+		except AutoReconnect, e:
+			raise ConnectionFailure(str(e))
+		# select the database
+		self.database = self.client[database_name]
+		# split the inital file
+		call("csplit -f vcf_loader_head_tmp_ %s '/^#CHROM/'" % vcf_file, shell=True)
+		# load the header elements
+		self.__parse_header('vcf_loader_head_tmp_00')
+		# split the second file based on how many cores we have
+		call("split -l$((`wc -l < vcf_loader_head_tmp_01`/%d)) vcf_loader_head_tmp_01 vcf_loader_tmp_ " % pool_count, shell=True)
+		# remove the first tmps
+		call("rm vcf_loader_head_tmp_*", shell=True)
+		# get all tmp files
+		self.vcf_shards = glob.glob('vcf_loader_tmp_*')
+
+
+	def add_index(self):
+
+		# lets add the index if one doesn't exist
+		if 'variant_search_index' not in self.database.variants.index_information():
+			self.database.variants.create_index([('_key', pymongo.TEXT)], name='variant_search_index', default_language='english', unique=True)
+
+		# lets add the index if one doesn't exist
+		if 'sample_search_index' not in self.database.samples.index_information():
+			self.database.samples.create_index([('_key', pymongo.TEXT)], name='sample_search_index', default_language='english', unique=True)
 
 
 if len(sys.argv) > 2:

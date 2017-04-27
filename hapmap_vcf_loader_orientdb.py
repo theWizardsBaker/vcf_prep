@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 import fileinput
-import re
+import argparse
 import sys
-import copy
-import pymongo
-import multiprocessing
-from subprocess import call
-import glob
-from functools import partial
+import pyorient
 
 class hapmap_load:
 
@@ -137,10 +132,27 @@ class hapmap_load:
 
 
 
-if len(sys.argv) > 2:
+
+parser = argparse.ArgumentParser(description='Process VCF file into an OrientDB database.')
+
+parser.add_argument('vcf', help='VCF file to parse')
+parser.add_argument('database', help='Name of the OrientDB database to access')
+parser.add_argument('username', help='Username for the OrientDB database')
+parser.add_argument('password', help='Password for the OrientDB database')
+parser.add_argument('-p', '--port', default='2424', help='OrientDB connection port')
+parser.add_argument('-i', '--ipaddr', default='localhost', help='OrientDB ip address')
+parser.add_argument('-l', '--logging', action="store_true", help='Program logging')
+
+args = parser.parse_args()
+
+if len(args) > 2:
 	# create our obj
 	loader = hapmap_load()
 	# start loading variants
-	loader.load_vcf(sys.argv[1], sys.argv[2])
+	loader.load_vcf(args.vcf, { name: args.database,
+								user: args.username,
+								password: args.password,
+								ip: args.ipaddr,
+								port: args.port })
 else:
 	print "please specify a VCF and OrientDB database"

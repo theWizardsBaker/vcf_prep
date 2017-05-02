@@ -31,6 +31,7 @@ class hapmap_load:
 	def load_vcf(self, vcf_file, database):
 		try:
 			# Initialize the client for OrientDB
+			# client = pyorient.OrientDB('localhost', '2424')
 			client = pyorient.OrientDB(database.ip, database.port) 
 			# open our database for writing
 			client.db_open(database.name, database.user, database.password )
@@ -67,11 +68,11 @@ class hapmap_load:
 				# iterate through all the table columns 
 				for sample in tablecolumns:
 					try:
-						client.record_create({ @Sample: { 'id' : sample } })
+						client.record_create({ @Sample : { 'id' : sample } })
 					except Exception as e:
 						print "%s could not be added, skipping" % sample
 			# calls
-			else
+			else:
 				# split the line on the tabs
 				variant_calls = re.split(r'\t+', line)
 				# create the variant object
@@ -109,7 +110,7 @@ class hapmap_load:
 					variant['info'][info_line[0]]['value'] = values
 				# try to insert the variant
 				try:
-					client.record_create({ @Variant: variant })
+					client.record_create({ @Variant : variant })
 				except Exception as e:
 					print "%s already exists in variants, skipping" % variant_calls[2]
 				# add each call to the appropriate sample
@@ -126,7 +127,7 @@ class hapmap_load:
 						}
 						# add the call
 						try:
-							client.record_create({ @Call: variant_call })
+							client.record_create({ @Call : variant_call })
 						except Exception as e:
 							print "%s already exists in variants, skipping" % variant_calls[2]
 
@@ -139,13 +140,13 @@ parser.add_argument('vcf', help='VCF file to parse')
 parser.add_argument('database', help='Name of the OrientDB database to access')
 parser.add_argument('username', help='Username for the OrientDB database')
 parser.add_argument('password', help='Password for the OrientDB database')
-parser.add_argument('-p', '--port', default='2424', help='OrientDB connection port')
+parser.add_argument('-p', '--port', default=2424, type=int, help='OrientDB connection port')
 parser.add_argument('-i', '--ipaddr', default='localhost', help='OrientDB ip address')
 parser.add_argument('-l', '--logging', action="store_true", help='Program logging')
 
 args = parser.parse_args()
 
-if len(args) > 2:
+if len(sys.argv) >= 4:
 	# create our obj
 	loader = hapmap_load()
 	# start loading variants

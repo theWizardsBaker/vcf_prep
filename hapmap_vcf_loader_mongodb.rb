@@ -56,7 +56,11 @@ class Hapmap_Load
 							sample_id = BSON::ObjectId.new
 							{ _key: sample, _id: sample_id }
 						end
-						client[:samples].insert_many(tablecolumns)
+						begin
+							client[:samples].insert_many(tablecolumns)
+						rescue Exception => e
+							puts "Samples already exist -- skipping"
+						end
 						# Mongo::BulkWrite.get(client[:samples], tablecolumns, ordered:false, write_concern: Mongo::BulkWrite::UnorderedBulkWrite)
 						# blk = Mongo::BulkWrite.new(client[:samples], tablecolumns, ordered:false, write_concern: 0)
 					else

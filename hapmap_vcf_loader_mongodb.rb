@@ -102,9 +102,10 @@ class Hapmap_Load
 							end
 							variant[:info][info_column[0]][:value] = val if not val.empty?
 						end
-						# try to insert the variant
-						client[:variants].insert_one(variant)
-
+						begin 
+							# try to insert the variant
+							client[:variants].insert_one(variant)
+						end
 						calls = []
 						# sample time
 						variant_calls[9..-1].each_with_index do |call, ind|

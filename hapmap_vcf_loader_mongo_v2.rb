@@ -1,10 +1,7 @@
 #!/usr/bin/env ruby
-require 'mongo'
 require 'slop'
 require 'zlib'
-# require 'parallel'
-# require 'concurrent'
-# require 'pp'
+require 'mongo'
 
 class Hapmap_Load
 
@@ -54,13 +51,20 @@ class Hapmap_Load
 						# walk over each element and add it to the mongo client
 						tablecolumns = line.split(/\t/)[9..-1].map do |sample| 
 							sample_id = BSON::ObjectId.new
-							{ _key: sample, _id: sample_id }
+							{ 
+								_key: sample, 
+								_id: sample_id,
+								missing_calls: [],
+								variant_calls: {}
+							}
 						end
 						begin
 							client[:samples].insert_many(tablecolumns)
 						rescue Exception => e
 							puts "Samples already exist -- skipping"
 						end
+						# lets add the index if one doesn't exist
+						client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
 						# Mongo::BulkWrite.get(client[:samples], tablecolumns, ordered:false, write_concern: Mongo::BulkWrite::UnorderedBulkWrite)
 						# blk = Mongo::BulkWrite.new(client[:samples], tablecolumns, ordered:false, write_concern: 0)
 					else
@@ -102,38 +106,35 @@ class Hapmap_Load
 							end
 							variant[:info][info_column[0]][:value] = val if not val.empty?
 						end
-						begin 
-							# try to insert the variant
-							client[:variants].insert_one(variant)
-						rescue Exception => e
 
-						end
-						calls = []
+						# try to insert the variant
+						client[:variants].insert_one(variant)
+
 						# sample time
 						variant_calls[9..-1].each_with_index do |call, ind|
 							# unless the call is ./. or .|.
-							unless call =~ /\.(\||\/)\./
-								# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
-								# store phase and what the genotype is if it differs from the reference
-								calls.push({ 
-									sample: tablecolumns[ind][:_id],
-									variant: variant_id, 
-									phased: !!(call =~ /\|/), 
-									genotype: call.split(/\||\//).map(&:to_i)
-								})
+							if call =~ /\.(\||\/)\./
+								# update
+								client[:samples].update({ _id: tablecolumns[ind][:_id] }, { "$push" : { missing_calls: variant_id } }, { upsert: true });
+							else 
+								unless call =~ /0(\||\/)0/
+									# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
+									# store phase and what the genotype is if it differs from the reference
+									var_call = { 
+										phased: !!(call =~ /\|/), 
+										genotype: call.split(/\||\//).map(&:to_i)
+									}
+									# update
+									client[:samples].update({ _id: tablecolumns[ind][:_id] }, { "$set" => { missing_calls: { variant_id : var_call } } }, { upsert: true });
+								end
 							end
 						end
 
-						# add the call to our sample
-						client[:calls].insert_many(calls)
-						# Mongo::BulkWrite::UnorderedBulkWrite.new(:calls, calls, write_concern: 0)
 					end
 				end
 			end
 			# lets add the index if one doesn't exist
 			client[:variants].indexes.create_one({ _key: 1 }, { name: 'variant_search_index', unique: true })
-			# lets add the index if one doesn't exist
-			client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
 		rescue Exception => e
 			puts e.message
 			puts (e.backtrace or []).join("\n")

@@ -1,10 +1,6 @@
 #!/usr/bin/env ruby
-require 'mongo'
 require 'slop'
 require 'zlib'
-# require 'parallel'
-# require 'concurrent'
-# require 'pp'
 
 class Hapmap_Load
 

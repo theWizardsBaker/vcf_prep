@@ -55,7 +55,7 @@ class Hapmap_Load
 								_key: sample, 
 								_id: sample_id,
 								missing_calls: [],
-								variant_calls: {}
+								variant_calls: []
 							}
 						end
 						begin
@@ -121,11 +121,12 @@ class Hapmap_Load
 									# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
 									# store phase and what the genotype is if it differs from the reference
 									var_call = { 
+										variant: variant_id,
 										phased: !!(call =~ /\|/), 
 										genotype: call.split(/\||\//).map(&:to_i)
 									}
 									# update
-									client[:samples].update({ _id: tablecolumns[ind][:_id] }, { "$set" => { missing_calls: { variant_id : var_call } } }, { upsert: true });
+									client[:samples].update({ _id: tablecolumns[ind][:_id] }, { "$push" : { missing_calls: var_call } }, { upsert: true });
 								end
 							end
 						end

@@ -52,8 +52,8 @@ class Hapmap_Load
 						tablecolumns = line.split(/\t/)[9..-1].map do |sample| 
 							sample_id = BSON::ObjectId.new
 							{ 
-								_key: sample, 
 								_id: sample_id,
+								_key: sample, 
 								missing_calls: [],
 								variant_calls: []
 							}
@@ -92,10 +92,12 @@ class Hapmap_Load
 							info_column = info_line.split('=')
 							# copy the variant info 
 							variant[:info][info_column[0]] = info_structure[info_column[0]].clone
+							# remove type, it can be inferred
+							type = variant[:info][info_column[0]].delete(:type)
 							# find out how to store each value for the infos
 							# break apart each info line by the ,  and map all values by type
 							val = info_column[1].to_s.split(/\,/).map do |elm|
-								case variant[:info][info_column[0]][:type].downcase
+								case type.downcase
 									when 'integer'
 										elm.to_i
 									when 'double', 'float'
@@ -163,6 +165,7 @@ class Hapmap_Load
 				elm_ref = val[1]
 				structure[elm_ref] = {}	
 			else
+				next if val[0].downcase == 'number'
 				# for this id, add the values
 				structure[elm_ref][val[0].downcase.to_sym] = val[1].to_s.gsub(/^\"|\"?$/, '')
 			end

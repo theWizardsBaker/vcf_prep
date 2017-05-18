@@ -117,7 +117,7 @@ class Hapmap_Load
 							# unless the call is ./. or .|.
 							if call =~ /\.(\||\/)\./
 								# update
-								client[:samples].update({ _id: tablecolumns[ind][:_id] }, { "$push" => { missing_calls: variant_id } }, { upsert: true })
+								client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { missing_calls: variant_id } }, { upsert: true })
 							else 
 								unless call =~ /0(\||\/)0/
 									# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
@@ -128,7 +128,7 @@ class Hapmap_Load
 										genotype: call.split(/\||\//).map(&:to_i)
 									}
 									# update
-									client[:samples].update({ _id: tablecolumns[ind][:_id] }, { "$push" => { missing_calls: var_call } }, { upsert: true })
+									client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { missing_calls: var_call } }, { upsert: true })
 								end
 							end
 						end

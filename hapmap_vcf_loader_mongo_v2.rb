@@ -50,6 +50,7 @@ class Hapmap_Load
 						# split the line on the tab and drop the first 9 elements (they are not samples)
 						# walk over each element and add it to the mongo client
 						tablecolumns = line.split(/\t/)[9..-1].map do |sample| 
+							# create a sample id
 							sample_id = BSON::ObjectId.new
 							{ 
 								_id: sample_id,
@@ -60,8 +61,6 @@ class Hapmap_Load
 						end
 						begin
 							client[:samples].insert_many(tablecolumns)
-							# lets add the index if one doesn't exist
-							client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
 						rescue Exception => e
 							puts "Samples already exist -- skipping"
 						end
@@ -117,7 +116,7 @@ class Hapmap_Load
 							# unless the call is ./. or .|.
 							if call =~ /\.(\||\/)\./
 								# update
-								client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { missing_calls: variant_calls[2] } }, { upsert: true })
+								client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { missing_calls: variant_calls[2] } }, { writeConcern: 0 })
 							else 
 								unless call =~ /0(\||\/)0/
 									# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
@@ -128,7 +127,7 @@ class Hapmap_Load
 										genotype: call.split(/\||\//).map(&:to_i)
 									}
 									# update
-									client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { variant_calls: var_call } }, { upsert: true })
+									client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { variant_calls: var_call }}, { writeConcern: 0 })
 								end
 							end
 						end
@@ -136,8 +135,14 @@ class Hapmap_Load
 					end
 				end
 			end
+
 			# lets add the index if one doesn't exist
-			client[:variants].indexes.create_one({ _key: 1 }, { name: 'variant_search_index', unique: true })
+			# client[:variants].indexes.create_one({ _key: 1 }, { name: 'variant_search_index', unique: true })
+			# 
+			# lets add the index if one doesn't exist
+			# client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
+			# client[:samples].ensureIndex({'missing_calls':1})
+			# client[:samples].ensureIndex({'variant_calls':1})
 		rescue Exception => e
 			puts e.message
 			puts (e.backtrace or []).join("\n")
@@ -148,7 +153,6 @@ class Hapmap_Load
 			file.close
 		end
 	end
-
 
 	private
 

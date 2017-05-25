@@ -14,6 +14,7 @@ class Hapmap_Load
 		begin
 			Mongo::Logger.logger.level = ::Logger::FATAL
 			# select the database
+			# client = Mongo::Client.new([ "localhost:27017" ], {database: 'maize', user: 'maize_user', password: 'maize'})
 			client = Mongo::Client.new([ "#{database_options[:ip]}:27017" ], database_options)
 			# contains the information in the VCF's info field 
 			info_structure = {}
@@ -111,12 +112,14 @@ class Hapmap_Load
 						# try to insert the variant
 						client[:variants].insert_one(variant)
 
+						calls = []
 						# sample time
 						variant_calls[9..-1].each_with_index do |call, ind|
 							# unless the call is ./. or .|.
 							if call =~ /\.(\||\/)\./
 								# update
-								client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { missing_calls: variant_calls[2] } }, { writeConcern: 0 })
+								# client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { missing_calls: variant_calls[2] } }, { writeConcern: 0 })
+								calls << { update_one: { filter: { _id: tablecolumns[ind][:_id] }, update: { "$push" => { missing_calls: variant_calls[2] } } } }
 							else 
 								unless call =~ /0(\||\/)0/
 									# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
@@ -127,10 +130,14 @@ class Hapmap_Load
 										genotype: call.split(/\||\//).map(&:to_i)
 									}
 									# update
-									client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { variant_calls: var_call }}, { writeConcern: 0 })
+									# client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { variant_calls: var_call }}, { writeConcern: 0 })
+									calls << { update_one: { filter: { _id: tablecolumns[ind][:_id] }, update: { "$push" => { variant_calls: var_call } } } }
 								end
 							end
 						end
+						
+						# execute a bulk update
+						client[:samples].bulk_write(calls, ordered: false)
 
 					end
 				end

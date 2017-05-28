@@ -62,6 +62,13 @@ class Hapmap_Load
 						end
 						begin
 							client[:samples].insert_many(tablecolumns)
+							# lets add the index if one doesn't exist
+							client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
+							# client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
+							client[:samples].indexes.create_one({ missing_calls: 1 }, { name: 'samples_missing_search_index', unique: true })
+							client[:samples].indexes.create_one({ variant_calls: 1 }, { name: 'samples_missing_search_index', unique: true })
+							# client[:samples].ensureIndex({'missing_calls':1})
+							# client[:samples].ensureIndex({'variant_calls':1})
 						rescue Exception => e
 							puts "Samples already exist -- skipping"
 						end
@@ -135,7 +142,7 @@ class Hapmap_Load
 								end
 							end
 						end
-						
+
 						# execute a bulk update
 						client[:samples].bulk_write(calls, ordered: false)
 
@@ -146,10 +153,7 @@ class Hapmap_Load
 			# lets add the index if one doesn't exist
 			# client[:variants].indexes.create_one({ _key: 1 }, { name: 'variant_search_index', unique: true })
 			# 
-			# lets add the index if one doesn't exist
-			# client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
-			# client[:samples].ensureIndex({'missing_calls':1})
-			# client[:samples].ensureIndex({'variant_calls':1})
+
 		rescue Exception => e
 			puts e.message
 			puts (e.backtrace or []).join("\n")

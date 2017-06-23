@@ -14,7 +14,7 @@ class Hapmap_Load
 		begin
 			Mongo::Logger.logger.level = ::Logger::FATAL
 			# select the database
-			# client = Mongo::Client.new([ "localhost:27017" ], {database: 'maize', user: 'maize_user', password: 'maize'})
+			# client = Mongo::Client.new([ "128.206.234.23:27017" ], {database: 'maize', user: 'maize_user', password: 'maize'})
 			client = Mongo::Client.new([ "#{database_options[:ip]}:27017" ], database_options)
 			# contains the information in the VCF's info field 
 			info_structure = {}
@@ -65,8 +65,8 @@ class Hapmap_Load
 							# lets add the index if one doesn't exist
 							client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
 							# client[:samples].indexes.create_one({ _key: 1 }, { name: 'samples_search_index', unique: true })
-							client[:samples].indexes.create_one({ missing_calls: 1 }, { name: 'samples_missing_search_index', unique: true })
-							client[:samples].indexes.create_one({ variant_calls: 1 }, { name: 'samples_missing_search_index', unique: true })
+							# client[:samples].indexes.create_one({ missing_calls: 1 }, { name: 'samples_missing_search_index', unique: true })
+							# client[:samples].indexes.create_one({ variant_calls: 1 }, { name: 'samples_variant_search_index', unique: true })
 							# client[:samples].ensureIndex({'missing_calls':1})
 							# client[:samples].ensureIndex({'variant_calls':1})
 						rescue Exception => e
@@ -126,7 +126,7 @@ class Hapmap_Load
 							if call =~ /\.(\||\/)\./
 								# update
 								# client[:samples].update_one({ _id: tablecolumns[ind][:_id] }, { "$push" => { missing_calls: variant_calls[2] } }, { writeConcern: 0 })
-								calls << { update_one: { filter: { _id: tablecolumns[ind][:_id] }, update: { "$push" => { missing_calls: variant_calls[2] } } } }
+								calls << { update_one: { filter: { _id: tablecolumns[ind][:_id] }, update: { "$addToSet" => { missing_calls: variant_calls[2] } } } }
 							else 
 								unless call =~ /0(\||\/)0/
 									# add the variant, phase (if it's | then phased, if / unphased), and genotype as an integer array
